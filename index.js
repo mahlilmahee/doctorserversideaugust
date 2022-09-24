@@ -20,6 +20,7 @@ async function run(){
     const database=client.db("doctor");
     const appoinmenst=database.collection('appoinments');
     const  dataOfUser=database.collection('dataOfUser');
+    const  usersInformation=database.collection('usersData');
 
 
   //  in case of you want to make a url or api you need to get here 
@@ -30,6 +31,30 @@ async function run(){
     const cursor =appoinmenst.find(query);
     const services= await cursor.toArray();
     res.send(services);
+  });
+
+  //  updating or adding users information in our own server 
+
+  app.put('/users/:email',async(req,res)=>{
+    const email=req.params.email;
+    const user=req.body;
+    const filter={email:email}
+    const options={upsert:true}
+    const updateDoc={$set:user}
+    const result=await usersInformation.updateOne(filter,updateDoc,options);
+    res.send(result)
+  })
+
+  // filtering data of a every single user based on their email address for dashboard 
+
+  app.get('/dashboard',async(req,res)=>{
+  
+    const email=req.query.email;
+    console.log(email)
+    const query={email:email}; 
+    const appoinmentData=await dataOfUser.find(query).toArray();
+    res.send(appoinmentData);
+
   })
 
 // getting the person data who have take any appoinment 
@@ -50,7 +75,8 @@ app.post('/appoinment',async(req,res)=>{
 
   app.get('/avaiable', async(req,res)=>{
 
-    const date=req.query.date || 'Sep 15, 2022' ;
+    const date=req.query.date ;
+    console.log(date,'check kor ')
     // step : 1 : get all the services available their 
     const services= await appoinmenst.find().toArray();
     
