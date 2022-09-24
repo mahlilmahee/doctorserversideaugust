@@ -1,9 +1,11 @@
 const express = require('express')
 const cors = require('cors');
 const app = express();
+var jwt = require('jsonwebtoken');
+
 const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config()
-const port = 5000
+const port = process.env.PORT || 5000
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.prsjhpn.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -12,6 +14,23 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 app.use(cors())
 app.use(express.json())
+
+function secureUrl(req,res,next){
+  // console.log('secureurl');
+  const accessHeaders=req?.headers.authorization;
+  if(!accessHeaders){
+  return res.status(401).send({message:'unauthorized access bro please go back '})
+  }
+  const realToken=accessHeaders.split(' ')[1];
+  console.log(realToken ,'dekah baki ');
+  jwt.verify(realToken, process.env.ACCESS_TOKEN, function(err, decoded) {
+    if(err){
+     return res.status(403).send({message:'Forbidded access bro'})
+    }
+    req.decoded=decoded;
+    next();
+  });
+}
 
 async function run(){
 
@@ -41,21 +60,77 @@ async function run(){
     const filter={email:email}
     const options={upsert:true}
     const updateDoc={$set:user}
+    const token=jwt.sign({email:email},process.env.ACCESS_TOKEN,{expiresIn:'10h'})
     const result=await usersInformation.updateOne(filter,updateDoc,options);
-    res.send(result)
+    if(email){
+      res.send({result,accessToken:token});
+    }
+  })
+ 
+  // check whether he is a admin or not after login  
+
+  app.get('admin/:email',async(req,res)=>{
+    const email=req.params.email;
+    const result =await userInformation.findOne({email:email})
+    const isAdmin=result.role==='admin';
+    res.send({admin:isAdmin})
+  })
+
+  // now making admin the users 
+  app.put('/users/admin/:email',secureUrl, async(req,res)=>{
+    const email=req.params.email;
+    // const user=req.body;
+    // console.log(email)
+    const requester=req.decoded.email;
+
+    const checkAdmin=await usersInformation.findOne({email:requester});
+    if(checkAdmin.role=='admin'){
+      const filter={email:email}
+      // const options={upsert:true}
+      const updateDoc={$set:{role:'admin'}}
+      // const token=jwt.sign({email:email},process.env.ACCESS_TOKEN,{expiresIn:'10h'})
+      const result=await usersInformation.updateOne(filter,updateDoc);
+      
+        res.send({result});
+    }
+    else{
+      res.status(401).send({message:'you are not validated '})
+    }
+    
+    
   })
 
   // filtering data of a every single user based on their email address for dashboard 
-
-  app.get('/dashboard',async(req,res)=>{
+//  NOW  we will secure the url with our token by taking it from the client side 
+  app.get('/dashboard',secureUrl, async(req,res)=>{
   
     const email=req.query.email;
-    console.log(email)
-    const query={email:email}; 
-    const appoinmentData=await dataOfUser.find(query).toArray();
-    res.send(appoinmentData);
+    const accessToken=req.headers.authorization;
+    const decodedEmail=req.decoded.email;
+    if(email==decodedEmail){
+      const query={email:email}; 
+      const appoinmentData=await dataOfUser.find(query).toArray();
+      res.send(appoinmentData);
+    }
+    else{
+      res.status(403).send({message:'may Allah bless you '})
+    }
+    // console.log(accessToken,'ami tqlhahl');
+    // console.log(email)
+    
 
   })
+
+  // fetching the users data only for admin table  
+ 
+  app.get('/allusers',secureUrl, async(req,res)=>{
+   
+    const result=await usersInformation.find().toArray();
+    res.send(result)
+    // console.log(result,'fekho ')
+
+  })
+
 
 // getting the person data who have take any appoinment 
 app.post('/appoinment',async(req,res)=>{
