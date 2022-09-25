@@ -151,7 +151,7 @@ app.post('/appoinment',async(req,res)=>{
   app.get('/avaiable', async(req,res)=>{
 
     const date=req.query.date ;
-    console.log(date,'check kor ')
+    // console.log(date,'check kor ')
     // step : 1 : get all the services available their 
     const services= await appoinmenst.find().toArray();
     
