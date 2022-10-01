@@ -22,7 +22,7 @@ function secureUrl(req,res,next){
   return res.status(401).send({message:'unauthorized access bro please go back '})
   }
   const realToken=accessHeaders.split(' ')[1];
-  console.log(realToken ,'dekah baki ');
+  // console.log(realToken ,'dekah baki ');
   jwt.verify(realToken, process.env.ACCESS_TOKEN, function(err, decoded) {
     if(err){
      return res.status(403).send({message:'Forbidded access bro'})
@@ -39,6 +39,7 @@ async function run(){
     const database=client.db("doctor");
     const appoinmenst=database.collection('appoinments');
     const  dataOfUser=database.collection('dataOfUser');
+    const  addDoctors=database.collection('doctorsCollection');
     const  usersInformation=database.collection('usersData');
 
 
@@ -47,7 +48,7 @@ async function run(){
   app.get('/services',async(req,res)=>{
 
     const query={};
-    const cursor =appoinmenst.find(query);
+    const cursor =appoinmenst.find(query).project({name:1});
     const services= await cursor.toArray();
     res.send(services);
   });
@@ -69,11 +70,15 @@ async function run(){
  
   // check whether he is a admin or not after login  
 
-  app.get('admin/:email',async(req,res)=>{
+  app.get('/admin/:email',async(req,res)=>{
     const email=req.params.email;
-    const result =await userInformation.findOne({email:email})
-    const isAdmin=result.role==='admin';
+    // console.log(email,'as a admin checker')
+    console.log(email,'admin email')
+    const result =await usersInformation.findOne({email:email})
+    const isAdmin=result.role=='admin';
     res.send({admin:isAdmin})
+    // console.log(admin)
+    // console.log(isAdmin,'dekhau ektu kore dekhale ki ba hobe ar ')
   })
 
   // now making admin the users 
@@ -118,6 +123,14 @@ async function run(){
     // console.log(accessToken,'ami tqlhahl');
     // console.log(email)
     
+
+  })
+
+  app.post('/doctors',async(req,res)=>{
+   
+    const information =req.body;
+    const result = await addDoctors.insertOne(information);
+    res.send(result);
 
   })
 
