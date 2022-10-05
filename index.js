@@ -15,6 +15,7 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 app.use(cors())
 app.use(express.json())
 
+
 function secureUrl(req,res,next){
   // console.log('secureurl');
   const accessHeaders=req?.headers.authorization;
@@ -43,6 +44,25 @@ async function run(){
     const  usersInformation=database.collection('usersData');
 
 
+    // the function has to  be declared here beacuse it needs to call a database 
+
+    const verifyAdmin=async(req,res,next)=>{
+     
+      // const user=req.body;
+      // console.log(email)
+      const requester=req.decoded.email;
+  
+      const checkAdmin=await usersInformation.findOne({email:requester});
+      if(checkAdmin.role=='admin'){
+        next()
+      }
+      else{
+        res.status(401).send({message:'you are not validated '})
+
+      }
+    }
+
+
   //  in case of you want to make a url or api you need to get here 
 
   app.get('/services',async(req,res)=>{
@@ -53,6 +73,26 @@ async function run(){
     res.send(services);
   });
 
+  // get all the information about the doctors by creating an get api for the client side  
+
+  app.get('/getdoctors',secureUrl,verifyAdmin,async(req,res)=>{
+  
+    const result=await addDoctors.find().toArray();
+    res.send(result)
+
+  })
+
+// delete a doctor form the managers 
+
+app.delete('/deleteDoctors',async(req,res)=>{
+
+  const email=req.body.email;
+  console.log(email,'the users to be deleted ')
+  const query = { email:email };
+  const result=await addDoctors.deleteOne(query);
+  res.send(result);
+
+})
   //  updating or adding users information in our own server 
 
   app.put('/users/:email',async(req,res)=>{
@@ -82,14 +122,10 @@ async function run(){
   })
 
   // now making admin the users 
-  app.put('/users/admin/:email',secureUrl, async(req,res)=>{
-    const email=req.params.email;
-    // const user=req.body;
-    // console.log(email)
-    const requester=req.decoded.email;
+  app.put('/users/admin/:email',secureUrl,verifyAdmin, async(req,res)=>{
+  
 
-    const checkAdmin=await usersInformation.findOne({email:requester});
-    if(checkAdmin.role=='admin'){
+    const email=req.params.email;
       const filter={email:email}
       // const options={upsert:true}
       const updateDoc={$set:{role:'admin'}}
@@ -97,10 +133,7 @@ async function run(){
       const result=await usersInformation.updateOne(filter,updateDoc);
       
         res.send({result});
-    }
-    else{
-      res.status(401).send({message:'you are not validated '})
-    }
+    
     
     
   })
